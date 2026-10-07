@@ -45,6 +45,10 @@ struct Config {
         EQUAL_WEIGHT,    // 等权重
         EXPONENTIAL      // 指数加权
     };
+    
+    // 运行时选择的策略（可由命令行覆盖）
+    Strategy strategy = Strategy::MAXDIV;
+    CovType cov_type = CovType::EQUAL_WEIGHT;
 };
 
 } // namespace mvo

@@ -62,6 +62,8 @@ int main(int argc, char** argv) {
     
     // 配置
     Config config;
+    config.strategy = strategy;   // 传递策略参数
+    config.cov_type = cov_type;   // 传递协方差类型参数
     
     // 运行优化
     auto start_run = std::chrono::high_resolution_clock::now();

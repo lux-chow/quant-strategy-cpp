@@ -47,16 +47,22 @@ void MVOPortfolio::run(const TimeSeriesData& data) {
             // Rolling sum
             window_returns = Preprocessor::rollingSum(window_returns, config_.keep);
             
-            // 决定策略类型
-            ObjectiveType obj_type = ObjectiveType::MAXDIV;
-            Config::CovType cov_type = Config::CovType::EQUAL_WEIGHT;
+            // 决定策略类型（使用配置中的设置）
+            ObjectiveType obj_type;
+            if (config_.strategy == Config::Strategy::MAXDIV) {
+                obj_type = ObjectiveType::MAXDIV;
+            } else if (config_.strategy == Config::Strategy::MAXRET) {
+                obj_type = ObjectiveType::MAXRET;
+            } else {
+                obj_type = ObjectiveType::RISK20;
+            }
             
             // 计算优化权重
             Eigen::VectorXd new_weight = optimizeDaily(
                 window_returns,
                 weights_[i - 1],
                 obj_type,
-                cov_type
+                config_.cov_type  // 使用配置中的协方差类型
             );
             
             weights_[i] = new_weight;
