@@ -2,22 +2,44 @@
 #include <iostream>
 #include <cmath>
 
-// NLopt C API
+// NLopt C API - 核心声明
 extern "C" {
     typedef struct nlopt_opt_s* nlopt_opt;
     
-    nlopt_opt nlopt_create(int algorithm, unsigned n);
+    typedef enum {
+        NLOPT_LD_LBFGS = 5,
+        NLOPT_LN_COBYLA = 6,
+        NLOPT_LN_NEWUOA = 9,
+        NLOPT_LD_VAR1 = 11,
+        NLOPT_LD_VAR2 = 12,
+        NLOPT_LD_TNEWTON = 13,
+        NLOPT_LD_TNEWTON_RESTART = 14,
+        NLOPT_LD_TNEWTON_PRECOND = 15,
+        NLOPT_LD_TNEWTON_PRECOND_RESTART = 16,
+        NLOPT_LN_NELDERMEAD = 17,
+        NLOPT_LN_SBPLX = 18,
+        NLOPT_LN_AUGLAG = 19,
+        NLOPT_LD_AUGLAG = 20,
+        NLOPT_LN_AUGLAG_EQ = 21,
+        NLOPT_LD_AUGLAG_EQ = 22,
+        NLOPT_GN_ESCH = 23,
+        NLOPT_LD_MMA = 31,
+        NLOPT_LD_CCSAQ = 33,
+        NLOPT_LD_SLSQP = 34
+    } nlopt_algorithm;
+    
+    nlopt_opt nlopt_create(nlopt_algorithm algorithm, unsigned n);
     void nlopt_destroy(nlopt_opt opt);
     int nlopt_optimize(nlopt_opt opt, double* x, double* minf);
-    void nlopt_set_min_objective(nlopt_opt opt, double (*f)(unsigned n, const double* x, double* gradient, void* f_data), void* f_data);
-    void nlopt_add_inequality_constraint(nlopt_opt opt, double (*c)(unsigned n, const double* x, double* gradient, void* c_data), void* c_data, double tol);
-    void nlopt_add_equality_constraint(nlopt_opt opt, double (*c)(unsigned n, const double* x, double* gradient, void* c_data), void* c_data, double tol);
-    void nlopt_set_maxeval(nlopt_opt opt, int maxeval);
-    void nlopt_set_ftol_abs(nlopt_opt opt, double tol);
-    void nlopt_set_ftol_rel(nlopt_opt opt, double tol);
-    void nlopt_set_xtol_rel(nlopt_opt opt, double tol);
-    void nlopt_set_lower_bounds(nlopt_opt opt, const double* lb);
-    void nlopt_set_verbosity(nlopt_opt opt, int verbosity);
+    int nlopt_set_min_objective(nlopt_opt opt, double (*f)(unsigned n, const double* x, double* gradient, void* f_data), void* f_data);
+    int nlopt_add_inequality_constraint(nlopt_opt opt, double (*c)(unsigned n, const double* x, double* gradient, void* c_data), void* c_data, double tol);
+    int nlopt_add_equality_constraint(nlopt_opt opt, double (*c)(unsigned n, const double* x, double* gradient, void* c_data), void* c_data, double tol);
+    int nlopt_set_maxeval(nlopt_opt opt, int maxeval);
+    int nlopt_set_ftol_abs(nlopt_opt opt, double tol);
+    int nlopt_set_ftol_rel(nlopt_opt opt, double tol);
+    int nlopt_set_xtol_rel(nlopt_opt opt, double tol);
+    int nlopt_set_lower_bounds(nlopt_opt opt, const double* lb);
+    int nlopt_set_verbosity(nlopt_opt opt, int verbosity);
 }
 
 namespace mvo {
@@ -64,11 +86,13 @@ Optimizer::Result Optimizer::optimize(const Eigen::VectorXd& init_weights) {
     
     int n = static_cast<int>(init_weights.size());
     
-    // 创建 NLopt 实例 (LD_SLSQP = 3)
+    // 创建 NLopt 实例 (LD_MMA = 31，支持非线性约束)
+    // MMA (Method of Moving Asymptotes) 是一种序列近似方法，
+    // 适用于凸优化问题，与 SLSQP 有相似的收敛特性
     if (opt_) {
         nlopt_destroy(opt_);
     }
-    opt_ = nlopt_create(3, n);  // NLOPT_LD_SLSQP = 3
+    opt_ = nlopt_create(NLOPT_LD_MMA, n);  // NLOPT_LD_MMA = 31
     
     // 设置目标函数
     auto* cb_data = new CallbackData{&obj_func_, &obj_grad_};
@@ -151,10 +175,6 @@ Optimizer::Result Optimizer::optimize(const Eigen::VectorXd& init_weights) {
     
     double minf;
     int res = nlopt_optimize(opt_, x.data(), &minf);
-    
-    result.objective_value = minf;
-    result.success = (res >= 0);
-    result.iterations = params_.max_iter;
     
     for (int i = 0; i < n; ++i) {
         result.weights(i) = x[i];

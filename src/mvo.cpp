@@ -44,7 +44,7 @@ void MVOPortfolio::run(const TimeSeriesData& data) {
                 processed_returns_, i - config_.window, i
             );
             
-            // Rolling sum
+            // Rolling sum（注意：这会减少行数）
             window_returns = Preprocessor::rollingSum(window_returns, config_.keep);
             
             // 决定策略类型（使用配置中的设置）
@@ -62,7 +62,7 @@ void MVOPortfolio::run(const TimeSeriesData& data) {
                 window_returns,
                 weights_[i - 1],
                 obj_type,
-                config_.cov_type  // 使用配置中的协方差类型
+                config_.cov_type
             );
             
             weights_[i] = new_weight;
