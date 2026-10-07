@@ -62,6 +62,30 @@ target_link_libraries(algo_cpp PRIVATE mvo_core ${NLOPT_LIBRARY})
 add_executable(algo_cpp_verify src/main_verify.cpp)
 target_link_libraries(algo_cpp_verify PRIVATE mvo_core ${NLOPT_LIBRARY})
 
+# 可执行文件：algo_cpp_verify_all
+add_executable(algo_cpp_verify_all src/main_verify_all.cpp)
+target_link_libraries(algo_cpp_verify_all PRIVATE mvo_core ${NLOPT_LIBRARY})
+
+# 可执行文件：debug_weights
+add_executable(debug_weights src/debug_weights.cpp)
+target_link_libraries(debug_weights PRIVATE mvo_core ${NLOPT_LIBRARY})
+
+# 可执行文件：test_objective
+add_executable(test_objective src/test_objective.cpp)
+target_link_libraries(test_objective PRIVATE mvo_core ${NLOPT_LIBRARY})
+
+# 可执行文件：test_compare
+add_executable(test_compare src/test_compare.cpp)
+target_link_libraries(test_compare PRIVATE mvo_core ${NLOPT_LIBRARY})
+
+# 可执行文件：test_which_constraint
+add_executable(test_which_constraint src/test_which_constraint.cpp)
+target_link_libraries(test_which_constraint PRIVATE mvo_core ${NLOPT_LIBRARY})
+
+# 可执行文件：test_local_min
+add_executable(test_local_min src/test_local_min.cpp)
+target_link_libraries(test_local_min PRIVATE mvo_core ${NLOPT_LIBRARY})
+
 # 安装目标
 install(TARGETS mvo_core algo_cpp algo_cpp_verify
     RUNTIME DESTINATION bin

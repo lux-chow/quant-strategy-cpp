@@ -1,4 +1,5 @@
 #include "objective.h"
+#include <iostream>
 #include <cmath>
 
 namespace mvo {
@@ -12,22 +13,28 @@ void ObjectiveFunction::create(
     EvalFunc& eval,
     GradFunc& grad
 ) {
+    // 按值拷贝 Eigen 对象，避免引用悬空
+    Eigen::VectorXd mean_copy = mean_ret;
+    Eigen::VectorXd std_copy = std_vec;
+    Eigen::MatrixXd cov_copy = cov_mat;
+    double ra_copy = risk_averse;
+    
     if (type == ObjectiveType::MAXDIV) {
-        eval = [&std_vec, &cov_mat](const Eigen::VectorXd& w) {
-            return evalMaxDiv(w, std_vec, cov_mat);
+        eval = [std_copy, cov_copy](const Eigen::VectorXd& w) {
+            return evalMaxDiv(w, std_copy, cov_copy);
         };
-        grad = [&std_vec, &cov_mat](const Eigen::VectorXd& w, Eigen::VectorXd& g) {
-            gradMaxDiv(w, std_vec, cov_mat, g);
+        grad = [std_copy, cov_copy](const Eigen::VectorXd& w, Eigen::VectorXd& g) {
+            gradMaxDiv(w, std_copy, cov_copy, g);
         };
     } else {
         // MAXRET 和 RISK20 都使用 MVO 目标函数
         // MAXRET: risk_averse = 0
         // RISK20: risk_averse = 20
-        eval = [&mean_ret, &cov_mat, risk_averse](const Eigen::VectorXd& w) {
-            return evalMVO(w, mean_ret, cov_mat, risk_averse);
+        eval = [mean_copy, cov_copy, ra_copy](const Eigen::VectorXd& w) {
+            return evalMVO(w, mean_copy, cov_copy, ra_copy);
         };
-        grad = [&mean_ret, &cov_mat, risk_averse](const Eigen::VectorXd& w, Eigen::VectorXd& g) {
-            gradMVO(w, mean_ret, cov_mat, risk_averse, g);
+        grad = [mean_copy, cov_copy, ra_copy](const Eigen::VectorXd& w, Eigen::VectorXd& g) {
+            gradMVO(w, mean_copy, cov_copy, ra_copy, g);
         };
     }
 }

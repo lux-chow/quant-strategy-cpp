@@ -21,13 +21,16 @@ std::vector<Constraint> ConstraintBuilder::build(const Eigen::VectorXd& prev_wei
     constraints.push_back(eq_sum);
     
     // 不等式约束: 换手率限制
+    // 按值拷贝 prev_weight
+    Eigen::VectorXd prev_weight_copy = prev_weight;
+    double turnover_limit_copy = turnover_limit;
     Constraint ineq_turnover;
     ineq_turnover.name = "turnover";
-    ineq_turnover.func = [&prev_weight, turnover_limit](const Eigen::VectorXd& w) {
-        return ineqTurnover(w, prev_weight, turnover_limit);
+    ineq_turnover.func = [prev_weight_copy, turnover_limit_copy](const Eigen::VectorXd& w) {
+        return ineqTurnover(w, prev_weight_copy, turnover_limit_copy);
     };
-    ineq_turnover.grad = [&prev_weight, turnover_limit](const Eigen::VectorXd& w, Eigen::VectorXd& g) {
-        ineqTurnoverGrad(w, prev_weight, turnover_limit, g);
+    ineq_turnover.grad = [prev_weight_copy, turnover_limit_copy](const Eigen::VectorXd& w, Eigen::VectorXd& g) {
+        ineqTurnoverGrad(w, prev_weight_copy, turnover_limit_copy, g);
     };
     constraints.push_back(ineq_turnover);
     

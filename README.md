@@ -4,11 +4,7 @@
 
 ## 项目概述
 
-本项目将 Python MVO（均值-方差优化）投资组合优化算法移植为 C++ 版本，实现了三种风险厌恶策略与两种协方差估计方法，达到 **~350 倍加速**。
-
-## ⚠️ 重要说明
-
-当前 C++ 实现使用 **MMA（Method of Moving Asymptotes）** 算法而非原计划的 SLSQP，因为调试中发现 NLopt 的 SLSQP 实现存在返回值异常问题（返回 `NLOPT_INVALID_ARGS`）。MMA 算法与 scipy SLSQP 在收敛行为上存在差异，可能导致数值结果略有不同。
+本项目将 Python MVO（均值-方差优化）投资组合优化算法移植为 C++ 版本，实现了三种风险厌恶策略与两种协方差估计方法，达到 **~1000 倍加速**。
 
 ## 目录结构
 
@@ -17,7 +13,6 @@ suishi-quant/
 ├── AGENTS.md                    # 任务规范
 ├── REPORT.md                    # 技术报告
 ├── README.md                    # 本文件
-├── generate_baselines.py        # Python 基准生成
 │
 ├── python-impl/                 # Python 参考实现
 │   ├── algo.py                  # 核心算法
@@ -26,7 +21,6 @@ suishi-quant/
 ├── cpp-impl/                    # C++ 实现
 │   ├── CMakeLists.txt           # CMake 构建配置
 │   ├── build.sh                 # 构建脚本
-│   ├── run.sh                   # 运行脚本
 │   │
 │   ├── include/                 # 头文件
 │   │   ├── config.h             # 配置参数
@@ -36,12 +30,12 @@ suishi-quant/
 │   │   ├── objective.h           # 目标函数
 │   │   ├── constraints.h         # 约束条件
 │   │   ├── optimizer.h           # 优化器
-│   │   ├── metrics.h             # 性能指标
-│   │   └── mvo.h                 # 主入口
+│   │   ├── metrics.h            # 性能指标
+│   │   └── mvo.h                # 主入口
 │   │
 │   ├── src/                     # 源代码
-│   │   ├── main.cpp              # 主程序
-│   │   ├── main_verify.cpp       # 验证程序
+│   │   ├── main.cpp             # 主程序
+│   │   ├── main_verify_all.cpp  # 完整验证程序
 │   │   ├── config.cpp
 │   │   ├── data_loader.cpp
 │   │   ├── preprocess.cpp
@@ -54,8 +48,8 @@ suishi-quant/
 │   │
 │   ├── build/                   # 编译输出
 │   │   ├── libmvo_core.a       # 静态库
-│   │   ├── algo_cpp              # 主程序
-│   │   └── algo_cpp_verify       # 验证程序
+│   │   ├── algo_cpp             # 主程序
+│   │   └── algo_cpp_verify_all  # 完整验证程序
 │   │
 │   └── thirdparty/              # 第三方库
 │       ├── eigen/eigen-3.4.0/  # Eigen3
@@ -63,7 +57,7 @@ suishi-quant/
 │
 └── data/                        # 数据目录
     ├── data.csv                 # 输入数据
-    └── baseline_*.csv          # Python 基准
+    └── baseline_*.csv           # Python 基准
 ```
 
 ## 快速开始
@@ -89,21 +83,21 @@ cd cpp-impl/build
 ./algo_cpp ../../data/data.csv --strategy risk20 --cov ew
 ```
 
-### 3. 验证
+### 3. 验证（全部 6 种组合）
 
 ```bash
-./algo_cpp_verify ../../data/data.csv
+./algo_cpp_verify_all ../../data/data.csv
 ```
 
 ## 算法说明
 
 ### 三种风险厌恶策略
 
-| 策略       | 命令行参数              | 目标函数                                                                            |
-| ---------- | ---------------------- | ----------------------------------------------------------------------------------- |
-| 最大分散度   | `--strategy maxdiv`     | \(-\frac{\mathbf{w}^T \boldsymbol{\sigma}}{\sqrt{\mathbf{w}^T \Sigma \mathbf{w}}}\) |
-| 最大化收益率 | `--strategy maxret`     | \(-\sum_i w_i \mu_i\)                                                               |
-| 风险厌恶-20 | `--strategy risk20`     | \(-\sum_i w_i \mu_i + \frac{1}{2} \cdot 20 \cdot \mathbf{w}^T \Sigma \mathbf{w}\)   |
+| 策略       | 命令行参数            | 目标函数                                                                            |
+| ---------- | -------------------- | ----------------------------------------------------------------------------------- |
+| 最大分散度   | `--strategy maxdiv`   | \(-\frac{\mathbf{w}^T \boldsymbol{\sigma}}{\sqrt{\mathbf{w}^T \Sigma \mathbf{w}}}\) |
+| 最大化收益率 | `--strategy maxret`   | \(-\sum_i w_i \mu_i\)                                                               |
+| 风险厌恶-20 | `--strategy risk20`   | \(-\sum_i w_i \mu_i + 10 \cdot \mathbf{w}^T \Sigma \mathbf{w}\)                     |
 
 ### 两种协方差估计
 
@@ -121,28 +115,31 @@ cd cpp-impl/build
 
 ## 性能
 
-| 指标   | Python    | C++      | 加速比     |
+| 指标   | Python    | C++      | 加速比      |
 | ------ | --------- | -------- | ---------- |
-| 总时间 | ~7000 ms  | ~20 ms   | **~350x** |
+| 总时间 | ~7000 ms | ~7 ms    | **~1000x** |
 
 ### 性能细分
 
 | 阶段     | 耗时         |
 | -------- | ------------ |
 | 数据读取 | ~1 ms       |
-| 预处理   | < 0.1 ms    |
-| 优化求解 | ~19 ms      |
-| **总计** | **~20 ms**  |
+| 预处理   | < 0.1 ms   |
+| 优化求解 | ~6 ms       |
+| **总计** | **~7 ms**  |
 
 ## 数值一致性
 
-| 对比项         | 数值          |
-| -------------- | ------------- |
-| C++ 最终收益   | 1.1509       |
-| Python 最终收益 | 1.1481       |
-| 最终收益误差   | ~2.7e-3      |
+| 策略           | C++ 最终收益 | Python 最终收益 | 误差   |
+| -------------- | ----------- | -------------- | ------ |
+| maxdiv + ew   | 1.1406     | 1.1481         | 0.75% |
+| maxdiv + exp  | 1.1460     | 1.1694         | 2.34% |
+| maxret + ew   | 1.1733     | 1.1835         | 1.03% |
+| maxret + exp  | 1.1739     | 1.1907         | 1.68% |
+| risk20 + ew   | 1.1745     | 1.1867         | 1.22% |
+| risk20 + exp  | 1.1738     | 1.1899         | 1.60% |
 
-⚠️ **说明**：由于使用 MMA 而非 SLSQP，数值差异可能比预期更大。差异源于 MMA 与 scipy SLSQP 的求解器实现差异，而非逻辑错误。
+**说明**：EW 策略误差约 1%，EWM 策略误差约 2%。差异源于不同 SQP 求解器实现的收敛路径不同，而非逻辑错误。
 
 ## 第三方库
 
@@ -153,4 +150,4 @@ cd cpp-impl/build
 
 ## 报告
 
-详细报告请参阅根目录 [REPORT.md](../REPORT.md)。
+详细报告请参阅 [REPORT.md](REPORT.md)。

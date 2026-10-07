@@ -14,15 +14,22 @@ Eigen::MatrixXd CovarianceCalculator::equalWeight(const Eigen::MatrixXd& returns
     // 计算均值
     Eigen::VectorXd mean = returns.colwise().mean();
     
-    // 计算协方差矩阵 (ddof=0, 除以 n)
+    // 计算协方差矩阵 (ddof=1, 与 pandas 保持一致)
     Eigen::MatrixXd centered = returns.rowwise() - mean.transpose();
-    Eigen::MatrixXd cov = (centered.adjoint() * centered) / n;
+    Eigen::MatrixXd cov = (centered.adjoint() * centered) / (n - 1);
     
     return cov;
 }
 
 Eigen::VectorXd CovarianceCalculator::equalWeightStd(const Eigen::MatrixXd& returns) {
-    return returns.colwise().stableNorm() / std::sqrt(returns.rows());
+    // 与 Python pandas 保持一致：ddof=1 (默认)
+    // std = sqrt(sum((x - mean)^2) / (n-1))
+    int n = returns.rows();
+    if (n <= 1) return Eigen::VectorXd::Zero(returns.cols());
+    
+    // 从协方差矩阵的 diagonal 提取标准差（ddof=1 一致）
+    Eigen::MatrixXd cov = equalWeight(returns);
+    return cov.diagonal().cwiseSqrt();
 }
 
 Eigen::MatrixXd CovarianceCalculator::exponentialWeight(const Eigen::MatrixXd& returns, int span) {
@@ -31,72 +38,24 @@ Eigen::MatrixXd CovarianceCalculator::exponentialWeight(const Eigen::MatrixXd& r
     
     if (n == 0) return Eigen::MatrixXd(d, d);
     
-    double lambda = decayFactor(span);
-    double one_minus_lambda = 1.0 - lambda;
+    // alpha = 2/(span+1)，与 pandas ewm(span=span, adjust=False) 一致
+    double alpha = decayFactor(span);
+    double one_minus_alpha = 1.0 - alpha;
     
-    // 递归计算 EWM 协方差
-    // cov_t = (1-lambda) * sum_{i=0}^{inf} lambda^i * (r_{t-i} - mu)'(r_{t-i} - mu)
-    // 简化为从第一个数据点开始递推
-    
-    // 计算初始均值（使用 EWM 递归公式）
-    Eigen::VectorXd ema_mean = returns.row(0);
-    for (int i = 1; i < n; ++i) {
-        ema_mean = one_minus_lambda * returns.row(i).transpose() + lambda * ema_mean;
-    }
-    
-    // 计算 EWM 协方差
+    // EWM 协方差（与 pandas ewm.cov() 一致）：
+    // mean_t = (1-alpha) * mean_{t-1} + alpha * r_t
+    // cov_t = (1-alpha) * cov_{t-1} + alpha * (r_t - mean_{t-1})^2
+    Eigen::VectorXd ema = returns.row(0).transpose();
     Eigen::MatrixXd cov(d, d);
     cov.setZero();
     
-    Eigen::VectorXd current_mean = returns.row(0).transpose();
-    double alpha_sum = 1.0;
-    
-    for (int i = 0; i < n; ++i) {
-        Eigen::VectorXd diff = returns.row(i).transpose() - current_mean;
-        double weight = std::pow(lambda, n - 1 - i);
-        cov += weight * diff * diff.transpose();
-        alpha_sum += weight;
+    for (int i = 1; i < n; ++i) {
+        Eigen::VectorXd delta = returns.row(i).transpose() - ema;
+        cov = one_minus_alpha * cov + alpha * (delta * delta.transpose());
+        ema = one_minus_alpha * ema + alpha * returns.row(i).transpose();
     }
     
-    // 归一化
-    // 注意：这里使用简单的递推公式，与 pandas ewm 行为可能有细微差异
-    // pandas ewm.cov() 使用递归展开
-    
-    // 重新实现：使用展开的递归形式
-    cov.setZero();
-    current_mean.setZero();
-    Eigen::MatrixXd cov_tmp(d, d);
-    cov_tmp.setZero();
-    
-    double ewma_var_sum = 0.0;
-    
-    for (int i = 0; i < n; ++i) {
-        double weight = std::pow(lambda, n - 1 - i);
-        
-        if (i == 0) {
-            current_mean = returns.row(i).transpose();
-        } else {
-            // 更新 EMA 均值
-            Eigen::VectorXd new_mean = one_minus_lambda * returns.row(i).transpose() + lambda * current_mean;
-            
-            // 更新协方差
-            for (int j = 0; j < d; ++j) {
-                for (int k = 0; k < d; ++k) {
-                    double delta1 = returns(i, j) - current_mean(j);
-                    double delta2 = returns(i, k) - current_mean(k);
-                    cov(j, k) = (one_minus_lambda * cov(j, k) + 
-                                 lambda * delta1 * delta2) / (one_minus_lambda * ewma_var_sum + lambda);
-                }
-            }
-            ewma_var_sum = one_minus_lambda * ewma_var_sum + lambda;
-            
-            current_mean = new_mean;
-        }
-    }
-    
-    // 最终的协方差矩阵（取最后一个）
-    // 返回完整的 EWM 协方差矩阵
-    return cov / (1.0 - std::pow(lambda, n));
+    return cov;
 }
 
 Eigen::VectorXd CovarianceCalculator::exponentialWeightMean(const Eigen::MatrixXd& returns, int span) {
@@ -105,13 +64,14 @@ Eigen::VectorXd CovarianceCalculator::exponentialWeightMean(const Eigen::MatrixX
     
     if (n == 0) return Eigen::VectorXd(d);
     
-    double lambda = decayFactor(span);
-    double one_minus_lambda = 1.0 - lambda;
+    // alpha = 2/(span+1)，与 pandas ewm(span=span, adjust=False) 一致
+    double alpha = decayFactor(span);
+    double one_minus_alpha = 1.0 - alpha;
     
-    // 递归计算 EMA
+    // 递归计算 EMA: ema_t = (1-alpha) * ema_{t-1} + alpha * r_t
     Eigen::VectorXd ema = returns.row(0).transpose();
     for (int i = 1; i < n; ++i) {
-        ema = one_minus_lambda * returns.row(i).transpose() + lambda * ema;
+        ema = one_minus_alpha * ema + alpha * returns.row(i).transpose();
     }
     
     return ema;

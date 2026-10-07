@@ -82,6 +82,12 @@ Eigen::VectorXd MVOPortfolio::optimizeDaily(const Eigen::MatrixXd& window_return
                                             const Eigen::VectorXd& prev_weight,
                                             ObjectiveType obj_type,
                                             Config::CovType cov_type) {
+    static int call_count = 0;
+    call_count++;
+    if (call_count <= 3) {
+        std::cerr << "[DEBUG optimizeDaily #" << call_count << "] obj_type=" << (int)obj_type << ", prev_weight sum=" << prev_weight.sum() << std::endl;
+    }
+    
     int n_assets = window_returns.cols();
     
     Eigen::VectorXd mean_ret(n_assets);
@@ -137,6 +143,11 @@ Eigen::VectorXd MVOPortfolio::optimizeDaily(const Eigen::MatrixXd& window_return
     // 执行优化
     Optimizer::Result result = optimizer.optimize(prev_weight);
     
+    if (call_count <= 3) {
+        std::cerr << "[DEBUG optimizeDaily #" << call_count << "] result.weights sum=" << result.weights.sum() << std::endl;
+        std::cerr << "[DEBUG optimizeDaily #" << call_count << "] result.success=" << result.success << std::endl;
+    }
+    
     // 确保权重非负
     Eigen::VectorXd w = result.weights;
     for (int i = 0; i < n_assets; ++i) {
@@ -147,6 +158,10 @@ Eigen::VectorXd MVOPortfolio::optimizeDaily(const Eigen::MatrixXd& window_return
     double sum = w.sum();
     if (sum > 1e-10) {
         w /= sum;
+    }
+    
+    if (call_count <= 3) {
+        std::cerr << "[DEBUG optimizeDaily #" << call_count << "] final weight sum=" << w.sum() << std::endl;
     }
     
     return w;
