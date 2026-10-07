@@ -1,5 +1,7 @@
 # C++ build artifacts
 cpp-impl/build/
+cpp-impl/lib/
+cpp-impl/thirdparty/
 *.o
 *.a
 *.so
