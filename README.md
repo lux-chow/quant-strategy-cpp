@@ -10,21 +10,21 @@
 
 ```
 suishi-quant/
-├── AGENTS.md                      # 任务规范
-├── REPORT.md                      # 技术报告
-├── README.md                      # 本文件
-├── generate_baselines.py          # Python 基准生成
+├── AGENTS.md                    # 任务规范
+├── REPORT.md                    # 技术报告
+├── README.md                    # 本文件
+├── generate_baselines.py        # Python 基准生成
 │
-├── python-impl/                   # Python 参考实现
-│   ├── algo.py                   # 核心算法
+├── python-impl/                 # Python 参考实现
+│   ├── algo.py                  # 核心算法
 │   └── data.csv                 # 输入数据
 │
-├── cpp-impl/                     # C++ 实现
-│   ├── CMakeLists.txt            # CMake 构建配置
-│   ├── build.sh                  # 构建脚本
+├── cpp-impl/                    # C++ 实现
+│   ├── CMakeLists.txt           # CMake 构建配置
+│   ├── build.sh                 # 构建脚本
 │   ├── run.sh                   # 运行脚本
 │   │
-│   ├── include/                  # 头文件
+│   ├── include/                 # 头文件
 │   │   ├── config.h             # 配置参数
 │   │   ├── data_loader.h        # 数据加载
 │   │   ├── preprocess.h         # 预处理
@@ -49,12 +49,12 @@ suishi-quant/
 │   │   └── mvo.cpp
 │   │
 │   ├── build/                   # 编译输出
-│   │   ├── libmvo_core.a       # 静态库
-│   │   ├── algo_cpp            # 主程序
-│   │   └── algo_cpp_verify     # 验证程序
+│   │   ├── libmvo_core.a        # 静态库
+│   │   ├── algo_cpp             # 主程序
+│   │   └── algo_cpp_verify      # 验证程序
 │   │
 │   └── thirdparty/              # 第三方库
-│       ├── eigen/eigen-3.4.0/  # Eigen3
+│       ├── eigen/eigen-3.4.0/   # Eigen3
 │       └── nlopt/               # NLopt
 │
 └── data/                        # 数据目录
@@ -62,7 +62,11 @@ suishi-quant/
     └── baseline_*.csv           # Python 基准
 ```
 
+
+
 ## 快速开始
+
+
 
 ### 1. 构建
 
@@ -70,6 +74,8 @@ suishi-quant/
 cd cpp-impl
 bash build.sh
 ```
+
+
 
 ### 2. 运行
 
@@ -85,67 +91,97 @@ cd cpp-impl/build
 ./algo_cpp ../../data/data.csv --strategy risk20 --cov ew
 ```
 
+
+
 ### 3. 验证
 
 ```bash
 ./algo_cpp_verify ../../data/data.csv
 ```
 
+
+
 ## 算法说明
+
+
 
 ### 三种风险厌恶策略
 
-| 策略 | 命令行参数 | 目标函数 |
-|------|-----------|----------|
-| 最大分散度 | `--strategy maxdiv` | \(-\frac{\mathbf{w}^T \boldsymbol{\sigma}}{\sqrt{\mathbf{w}^T \Sigma \mathbf{w}}}\) |
-| 最大化收益率 | `--strategy maxret` | \(-\sum_i w_i \mu_i\) |
-| 风险厌恶-20 | `--strategy risk20` | \(-\sum_i w_i \mu_i + \frac{1}{2} \cdot 20 \cdot \mathbf{w}^T \Sigma \mathbf{w}\) |
+
+| 策略      | 命令行参数               | 目标函数                                                                            |
+| ------- | ------------------- | ------------------------------------------------------------------------------- |
+| 最大分散度   | `--strategy maxdiv` | -\frac{\mathbf{w}^T \boldsymbol{\sigma}}{\sqrt{\mathbf{w}^T \Sigma \mathbf{w}}} |
+| 最大化收益率  | `--strategy maxret` | -\sum_i w_i \mu_i                                                               |
+| 风险厌恶-20 | `--strategy risk20` | -\sum_i w_i \mu_i + \frac{1}{2} \cdot 20 \cdot \mathbf{w}^T \Sigma \mathbf{w}   |
+
+
+
 
 ### 两种协方差估计
 
-| 估计 | 命令行参数 | 说明 |
-|------|-----------|------|
-| 等权重 | `--cov ew` | 历史窗口内等权重协方差 |
+
+| 估计   | 命令行参数       | 说明            |
+| ---- | ----------- | ------------- |
+| 等权重  | `--cov ew`  | 历史窗口内等权重协方差   |
 | 指数加权 | `--cov exp` | 近期数据权重更高（EWM） |
+
+
+
 
 ### 约束条件
 
-- 非负权重：\(w_i \geq 0\)
-- 权重和为 1：\(\sum w_i = 1\)
-- 换手率限制：\(\sum|w_i - w_{i-1}| \leq 0.1\)
+- 非负权重：w_i \geq 0
+- 权重和为 1：\sum w_i = 1
+- 换手率限制：\sum|w_i - w_{i-1}| \leq 0.1
 - 品种组约束：各组上下限 [0.15, 0.35]
+
+
 
 ## 性能
 
-| 指标 | Python | C++ | 加速比 |
-|------|--------|------|--------|
+
+| 指标  | Python   | C++     | 加速比        |
+| --- | -------- | ------- | ---------- |
 | 总时间 | ~7000 ms | ~1.5 ms | **~4667x** |
+
+
+
 
 ### 性能细分
 
-| 阶段 | 耗时 |
-|------|------|
-| 数据读取 | 1.1 ms |
-| 预处理 | < 0.1 ms |
-| 优化求解 | 0.35 ms |
+
+| 阶段     | 耗时          |
+| ------ | ----------- |
+| 数据读取   | 1.1 ms      |
+| 预处理    | < 0.1 ms    |
+| 优化求解   | 0.35 ms     |
 | **总计** | **~1.5 ms** |
+
+
+
 
 ## 数值一致性
 
-| 对比项 | 数值 |
-|--------|------|
-| C++ 最终收益 | 1.1509 |
-| Python 最终收益 | 1.1481 |
-| 最终收益误差 | ~2.7e-3 |
+
+| 对比项         | 数值      |
+| ----------- | ------- |
+| C++ 最终收益    | 1.1509  |
+| Python 最终收益 | 1.1481  |
+| 最终收益误差      | ~2.7e-3 |
+
 
 **说明**：数值差异源于 NLopt 与 scipy SLSQP 的求解器实现差异，而非逻辑错误。
 
 ## 第三方库
 
-| 库 | 版本 | 许可证 | 用途 |
-|----|------|--------|------|
+
+| 库      | 版本    | 许可证  | 用途   |
+| ------ | ----- | ---- | ---- |
 | Eigen3 | 3.4.0 | MPL2 | 线性代数 |
-| NLopt | 2.9.0 | BSD | 约束优化 |
+| NLopt  | 2.9.0 | BSD  | 约束优化 |
+
+
+
 
 ## 报告
 
